@@ -4,7 +4,7 @@
 		<TargetFrameworks>netcoreapp2.1;netcoreapp3.1;net461;net5.0;netstandard2.0;netstandard2.1;</TargetFrameworks>
 		<Version>1.7.0</Version>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-		<LangVersion>8.0</LangVersion>
+		<LangVersion>9.0</LangVersion>
 	</PropertyGroup>
 
 	<PropertyGroup>
@@ -96,6 +96,7 @@
 	<ItemGroup>
 		<Compile Include="..\DapperExtensions\DapperAsyncExtensions.cs" Link="DapperAsyncExtensions.cs" />
 		<Compile Include="..\DapperExtensions\DapperAsyncImplementor.cs" Link="DapperAsyncImplementor.cs" />
+		<Compile Include="..\DapperExtensions\DapperAsyncImplementor.Part.cs" Link="DapperAsyncImplementor.Part.cs" />
 		<Compile Include="..\DapperExtensions\DapperExtensions.cs" Link="DapperExtensions.cs" />
 		<Compile Include="..\DapperExtensions\DapperExtensionsConfiguration.cs" Link="DapperExtensionsConfiguration.cs" />
 		<Compile Include="..\DapperExtensions\DapperImplementor.cs" Link="DapperImplementor.cs" />

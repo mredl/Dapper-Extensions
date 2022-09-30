@@ -341,9 +341,9 @@ namespace DapperExtensions
         /// <summary>
         /// Gets the last SQL command executed by the Dapper Extensions Implementation
         /// </summary>
-        public static async Task<string> LastExecutedCommandAsync()
+        public static Task<string> LastExecutedCommandAsync()
         {
-            return await Task.FromResult(Instance.LastExecutedCommand);
+            return Task.FromResult(Instance.LastExecutedCommand);
         }
 
         /// <summary>
@@ -358,18 +358,18 @@ namespace DapperExtensions
         /// Generates a COMB Guid which solves the fragmented index issue.
         /// See: http://davybrion.com/blog/2009/05/using-the-guidcomb-identifier-strategy
         /// </summary>
-        public static async Task<Guid> GetNextGuid()
+        public static Task<Guid> GetNextGuid()
         {
-            return await Task.FromResult(Instance.SqlGenerator.Configuration.GetNextGuid());
+            return Task.FromResult(Instance.SqlGenerator.Configuration.GetNextGuid());
         }
 
         /// <summary>
         /// Gets the appropriate mapper for the specified type T.
         /// If the mapper for the type is not yet created, a new mapper is generated from the mapper type specifed by DefaultMapper.
         /// </summary>
-        public static async Task<IClassMapper> GetMap<T>() where T : class
+        public static Task<IClassMapper> GetMap<T>() where T : class
         {
-            return await Task.FromResult(_configuration.GetMap<T>());
+            return Task.FromResult(_configuration.GetMap<T>());
         }
     }
 }

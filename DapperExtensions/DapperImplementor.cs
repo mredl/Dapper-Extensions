@@ -594,7 +594,7 @@ namespace DapperExtensions
             }
         }
 
-        private object InsertTriggered<T>(IDbConnection connection, T entity, IDbTransaction transaction,
+        protected object InsertTriggered<T>(IDbConnection connection, T entity, IDbTransaction transaction,
             int? commandTimeout, string sql, IMemberMap key, DynamicParameters dynamicParameters)
         {
             // defaultValue need for identify type of parameter
@@ -607,7 +607,7 @@ namespace DapperExtensions
             return dynamicParameters.Get<object>(SqlGenerator.Configuration.Dialect.ParameterPrefix + "IdOutParam");
         }
 
-        private object InsertIdentity(IDbConnection connection, IDbTransaction transaction,
+        protected object InsertIdentity(IDbConnection connection, IDbTransaction transaction,
             int? commandTimeout, IClassMapper classMap, string sql, DynamicParameters dynamicParameters)
         {
             IEnumerable<long> result;
@@ -649,7 +649,7 @@ namespace DapperExtensions
             }
         }
 
-        private IDictionary<string, object> AddSequenceParameter<T>(IDbConnection connection, T entity, 
+        protected IDictionary<string, object> AddSequenceParameter<T>(IDbConnection connection, T entity, 
             IMemberMap key, DynamicParameters dynamicParameters, IDictionary<string, object> keyValues)
         {
             var query = $"select {key.SequenceName}.nextval seq from dual";
@@ -665,7 +665,7 @@ namespace DapperExtensions
             return keyValues;
         }
 
-        private void AddKeyParameters<T>(T entity, IList<IMemberMap> keyList, DynamicParameters dynamicParameters, bool useColumnAlias = false)
+        protected void AddKeyParameters<T>(T entity, IList<IMemberMap> keyList, DynamicParameters dynamicParameters, bool useColumnAlias = false)
         {
             foreach (var prop in keyList)
             {
