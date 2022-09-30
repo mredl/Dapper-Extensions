@@ -11,7 +11,6 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
-using AutoMapper = Slapper.AutoMapper;
 
 namespace DapperExtensions
 {
@@ -241,9 +240,9 @@ namespace DapperExtensions
             var dynamicParameters = GetDynamicParameters(parameters);
 
             LastExecutedCommand = sql;
-            var query = connection.Query<dynamic>(sql, dynamicParameters, transaction, buffered, commandTimeout, CommandType.Text);
+            var query = connection.Query<T>(sql, dynamicParameters, transaction, buffered, commandTimeout, CommandType.Text);
 
-            return MappColumns<T>(query);
+            return query;
         }
 
         protected IEnumerable<T> GetPageAutoMap<T>(IDbConnection connection, IClassMapper classMap, IPredicate predicate, IList<ISort> sort, int page, int resultsPerPage, IDbTransaction transaction, int? commandTimeout, bool buffered, IList<IProjection> colsToSelect, IList<IReferenceMap> includedProperties = null) where T : class
@@ -253,9 +252,9 @@ namespace DapperExtensions
             var dynamicParameters = GetDynamicParameters(parameters);
 
             LastExecutedCommand = sql;
-            var query = connection.Query<dynamic>(sql, dynamicParameters, transaction, buffered, commandTimeout, CommandType.Text);
+            var query = connection.Query<T>(sql, dynamicParameters, transaction, buffered, commandTimeout, CommandType.Text);
 
-            return MappColumns<T>(query);
+            return query;
         }
 
         protected IEnumerable<T> GetPage<T>(IDbConnection connection, IClassMapper classMap, IPredicate predicate, IList<ISort> sort, int page, int resultsPerPage, IDbTransaction transaction, int? commandTimeout, bool buffered, IList<IProjection> colsToSelect, IList<IReferenceMap> includedProperties = null) where T : class
@@ -425,6 +424,7 @@ namespace DapperExtensions
 
         protected void SetAutoMapperIdentifier(IList<Table> tables)
         {
+            return;
             foreach (var table in tables)
             {
                 var map = SqlGenerator.Configuration.GetMap(table.EntityType);
@@ -438,7 +438,7 @@ namespace DapperExtensions
                     .Select(p => p.Name)
                     .ToList();
 
-                AutoMapper.Configuration.AddIdentifiers(table.IsVirtual ? table.EntityType.BaseType : table.EntityType, properties);
+               // AutoMapper.Configuration.AddIdentifiers(table.IsVirtual ? table.EntityType.BaseType : table.EntityType, properties);
             }
         }
 
@@ -455,7 +455,7 @@ namespace DapperExtensions
                 return SqlGenerator.AllColumns.Where(c => c.Alias.Equals(columnAlias, StringComparison.InvariantCultureIgnoreCase)).Select(c => c.SimpleAlias).Single();
             return "";
         }
-
+        /*
         protected IEnumerable<T> MappColumns<T>(IEnumerable<dynamic> values) where T : class
         {
             var list = new List<Dictionary<string, object>>();
@@ -475,7 +475,7 @@ namespace DapperExtensions
             SetAutoMapperIdentifier(SqlGenerator.MappedTables);
 
             return AutoMapper.Map<T>(list, false);
-        }
+        }*/
 
         protected static DynamicParameters GetDynamicParameters(Dictionary<string, object> parameters)
         {

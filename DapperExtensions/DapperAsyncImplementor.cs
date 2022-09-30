@@ -8,7 +8,6 @@ using System.Data;
 using System.Dynamic;
 using System.Linq;
 using System.Threading.Tasks;
-using AutoMapper = Slapper.AutoMapper;
 
 namespace DapperExtensions
 {
@@ -338,9 +337,9 @@ namespace DapperExtensions
 
             LastExecutedCommand = sql;
             var command = new CommandDefinition(sql, dynamicParameters, transaction, commandTimeout, CommandType.Text, buffered ? CommandFlags.Buffered : CommandFlags.None);
-            var query = await connection.QueryAsync<dynamic>(sql, command);
+            var query = await connection.QueryAsync<T>(sql, command);
 
-            return MappColumns<T>(query);
+            return query;
         }
 
         private async Task<IEnumerable<T>> InternalGetPageAutoMapAsync<T>(IDbConnection connection, object predicate, IList<ISort> sort, int page, int resultsPerPage,
@@ -354,9 +353,9 @@ namespace DapperExtensions
 
             LastExecutedCommand = sql;
             var command = new CommandDefinition(sql, dynamicParameters, transaction, commandTimeout, CommandType.Text, buffered ? CommandFlags.Buffered : CommandFlags.None);
-            var query = await connection.QueryAsync<dynamic>(sql, command);
+            var query = await connection.QueryAsync<T>(sql, command);
 
-            return MappColumns<T>(query);
+            return query;
         }
 
         private Task<IEnumerable<T>> InternalGetSetAsync<T>(IDbConnection connection, object predicate, IList<ISort> sort, int firstResult, int maxResults,
@@ -394,10 +393,10 @@ namespace DapperExtensions
 
         protected async Task<IEnumerable<T>> GetListAutoMapAsync<T>(IDbConnection connection, IClassMapper classMap, IPredicate predicate, IList<ISort> sort, IDbTransaction transaction, int? commandTimeout, IList<IProjection> colsToSelect = null) where T : class
         {
-            var query = await GetListAsync<dynamic>(connection, classMap, predicate, sort, transaction, commandTimeout, colsToSelect);
+            var query = await GetListAsync<T>(connection, classMap, predicate, sort, transaction, commandTimeout, colsToSelect);
             var data = query.ToList();
 
-            return AutoMapper.MapDynamic<T>(data, false);
+            return data;
         }
 
         /// <summary>
@@ -421,10 +420,10 @@ namespace DapperExtensions
         /// </summary>
         protected async Task<IEnumerable<T>> GetPageAutoMapAsync<T>(IDbConnection connection, IClassMapper classMap, IPredicate predicate, IList<ISort> sort, int page, int resultsPerPage, IDbTransaction transaction, int? commandTimeout, IList<IProjection> colsToSelect = null) where T : class
         {
-            var query = await GetPageAsync<dynamic>(connection, classMap, predicate, sort, page, resultsPerPage, transaction, commandTimeout, colsToSelect);
+            var query = await GetPageAsync<T>(connection, classMap, predicate, sort, page, resultsPerPage, transaction, commandTimeout, colsToSelect);
             var data = query.ToList();
 
-            return AutoMapper.MapDynamic<T>(data, false);
+            return data;
         }
 
         /// <summary>
