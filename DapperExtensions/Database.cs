@@ -54,8 +54,8 @@ namespace DapperExtensions
     {
         Task<T> GetAsync<T>(dynamic id, IDbTransaction transaction, int? commandTimeout = null) where T : class;
         Task<T> GetAsync<T>(dynamic id, int? commandTimeout = null) where T : class;
-        void InsertAsync<T>(IEnumerable<T> entities, IDbTransaction transaction, int? commandTimeout = null) where T : class;
-        void InsertAsync<T>(IEnumerable<T> entities, int? commandTimeout = null) where T : class;
+        Task InsertAsync<T>(IEnumerable<T> entities, IDbTransaction transaction, int? commandTimeout = null) where T : class;
+        Task InsertAsync<T>(IEnumerable<T> entities, int? commandTimeout = null) where T : class;
         Task<dynamic> InsertAsync<T>(T entity, IDbTransaction transaction, int? commandTimeout = null) where T : class;
         Task<dynamic> InsertAsync<T>(T entity, int? commandTimeout = null) where T : class;
         Task<bool> UpdateAsync<T>(T entity, IDbTransaction transaction, int? commandTimeout = null, bool ignoreAllKeyProperties = false) where T : class;
@@ -344,12 +344,12 @@ namespace DapperExtensions
             return await _dapper.GetAsync<T>(Connection, id, _transaction, commandTimeout);
         }
 
-        public async virtual void InsertAsync<T>(IEnumerable<T> entities, IDbTransaction transaction, int? commandTimeout) where T : class
+        public async virtual Task InsertAsync<T>(IEnumerable<T> entities, IDbTransaction transaction, int? commandTimeout) where T : class
         {
             await _dapper.InsertAsync(Connection, entities, transaction, commandTimeout);
         }
 
-        public async virtual void InsertAsync<T>(IEnumerable<T> entities, int? commandTimeout) where T : class
+        public async virtual Task InsertAsync<T>(IEnumerable<T> entities, int? commandTimeout) where T : class
         {
             await _dapper.InsertAsync(Connection, entities, _transaction, commandTimeout);
         }

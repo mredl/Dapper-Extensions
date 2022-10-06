@@ -243,7 +243,7 @@ namespace DapperExtensions
                 var keyColumn = triggerIdentityColumn ?? identityColumn;
                 object keyValue;
 
-                dynamicParameters = GetDynamicParameters(entity, dynamicParameters, keyColumn, true);
+                dynamicParameters = GetDynamicParameters(classMap, entity, dynamicParameters, keyColumn, true);
 
                 if (triggerIdentityColumn != null)
                 {
@@ -337,7 +337,7 @@ namespace DapperExtensions
 
             LastExecutedCommand = sql;
             var command = new CommandDefinition(sql, dynamicParameters, transaction, commandTimeout, CommandType.Text, buffered ? CommandFlags.Buffered : CommandFlags.None);
-            var query = await connection.QueryAsync<T>(sql, command);
+            var query = await connection.QueryAsync<T>(command);
 
             return query;
         }
@@ -353,7 +353,7 @@ namespace DapperExtensions
 
             LastExecutedCommand = sql;
             var command = new CommandDefinition(sql, dynamicParameters, transaction, commandTimeout, CommandType.Text, buffered ? CommandFlags.Buffered : CommandFlags.None);
-            var query = await connection.QueryAsync<T>(sql, command);
+            var query = await connection.QueryAsync<T>(command);
 
             return query;
         }
@@ -369,7 +369,7 @@ namespace DapperExtensions
 
             LastExecutedCommand = sql;
             var command = new CommandDefinition(sql, dynamicParameters, transaction, commandTimeout, CommandType.Text, buffered ? CommandFlags.Buffered : CommandFlags.None);
-            return connection.QueryAsync<T>(sql, command);
+            return connection.QueryAsync<T>(command);
         }
         #endregion
 
