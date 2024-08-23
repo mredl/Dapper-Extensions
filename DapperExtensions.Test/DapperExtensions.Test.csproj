@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>netcoreapp2.1;netcoreapp3.1;net461;net5.0</TargetFrameworks>
+		<!--TargetFrameworks>netcoreapp2.1;netcoreapp3.1;net461;net5.0</TargetFrameworks-->
+		<TargetFramework>net8.0</TargetFramework>
 		<IsPackable>false</IsPackable>
 	</PropertyGroup>
 	
@@ -13,14 +14,14 @@
 		<LangVersion>8.0</LangVersion>
 	</PropertyGroup>
 
-	<!--<PropertyGroup>
+	<PropertyGroup>
 		<IsWindows Condition="'$(OS)' == 'Windows_NT'">true</IsWindows>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(MSBuildRuntimeType)' == 'Core'">
 		<IsOSX Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">true</IsOSX>
 		<IsLinux Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true'">true</IsLinux>
-	</PropertyGroup> -->
+	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="coverlet.collector" Version="3.0.3">
@@ -33,7 +34,7 @@
 		<PackageReference Include="Microsoft.TestPlatform.TestHost" Version="16.10.0" />
 		<PackageReference Include="Newtonsoft.Json" version="13.0.1" />
 		<PackageReference Include="Moq" version="4.16.1" />
-		<PackageReference Include="MySql.Data" version="8.0.24" />
+		<PackageReference Include="MySql.Data" version="8.0.30" />
 		<PackageReference Include="NUnit" Version="3.13.2" />
 		<PackageReference Include="NUnit.ConsoleRunner" Version="3.12.0" />
 		<PackageReference Include="NUnit3TestAdapter" Version="3.17.0" />
@@ -42,18 +43,19 @@
 		<PackageReference Include="System.Data.SqlClient" Version="4.8.2" />
 		<PackageReference Include="Dapper" Version="2.0.90" />
 	</ItemGroup>
-
+	<ItemGroup Condition="'$(TargetFramework)' == 'net461' and '$(OSTYPE)' != 'linux-gnu' and '$(OSTYPE)' != 'darwin18'">
+		<PackageReference Include="Oracle.ManagedDataAccess" version="19.11.0" targetFramework="net461" />
+	</ItemGroup>
 	<ItemGroup Condition="'$(TargetFramework)' != 'net461'">
 		<PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.19.110" />
 		<PackageReference Include="System.Reflection.Emit" Version="4.7.0" />
 		<PackageReference Include="System.Data.SQLite.Core" version="1.0.113.7" />
 		<PackageReference Include="IBM.Data.DB2.Core" Version="2.2.0.100" />
-
+		<PackageReference Include="IBM.Data.DB2.Core-lnx" Version="2.2.0.100" />
 		<!--<PackageReference Include="IBM.Data.DB2.Core-lnx" Version="2.2.0.100" Condition="'$(OSTYPE)' == 'linux-gnu'" />
 		<PackageReference Include="IBM.Data.DB2.Core-osx" Version="2.2.0.100" Condition="'$(OSTYPE)' == 'darwin18'"/>
 		-->
 	</ItemGroup>
-
 	<!--<ItemGroup Condition="'$(TargetFramework)' != 'net461' and $(IsWindows) == true ">
 		<PackageReference Include="IBM.Data.DB2.Core-lnx" version="2.2.0.100" />
 	</ItemGroup>

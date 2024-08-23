@@ -52,7 +52,7 @@ namespace DapperExtensions.Test.IntegrationTests.Async.SqlServer
                 var a2 = new Animal { Name = "Bar" };
                 var a3 = new Animal { Name = "Baz" };
 
-                Db.InsertAsync<Animal>(new[] { a1, a2, a3 });
+                Db.InsertAsync<Animal>(new[] { a1, a2, a3 }).GetAwaiter().GetResult();
 
                 var animals = Db.GetListAsync<Animal>().Result.ToList();
                 Assert.AreEqual(3, animals.Count);
@@ -342,10 +342,17 @@ namespace DapperExtensions.Test.IntegrationTests.Async.SqlServer
         {
             private void Arrange()
             {
-                Db.InsertAsync(new Person { Active = true, FirstName = "a", LastName = "a1", DateCreated = DateTime.UtcNow.AddDays(-10) });
-                Db.InsertAsync(new Person { Active = false, FirstName = "b", LastName = "b1", DateCreated = DateTime.UtcNow.AddDays(-10) });
-                Db.InsertAsync(new Person { Active = true, FirstName = "c", LastName = "c1", DateCreated = DateTime.UtcNow.AddDays(-3) });
-                Db.InsertAsync(new Person { Active = false, FirstName = "d", LastName = "d1", DateCreated = DateTime.UtcNow.AddDays(-1) });
+                Task.WaitAll(new Task[]
+                {
+                    Db.InsertAsync(new Person
+                        {Active = true, FirstName = "a", LastName = "a1", DateCreated = DateTime.UtcNow.AddDays(-10)}),
+                    Db.InsertAsync(new Person { Active = false, FirstName = "b", LastName = "b1",
+                    DateCreated = DateTime.UtcNow.AddDays(-10) }),
+                    Db.InsertAsync(new Person { Active = true, FirstName = "c", LastName = "c1",
+                    DateCreated = DateTime.UtcNow.AddDays(-3) }),
+                    Db.InsertAsync(new Person { Active = false, FirstName = "d", LastName = "d1",
+                    DateCreated = DateTime.UtcNow.AddDays(-1) })
+                });
             }
 
             [Test]
@@ -384,14 +391,16 @@ namespace DapperExtensions.Test.IntegrationTests.Async.SqlServer
             [Test]
             public void ReturnsItems()
             {
-                Db.InsertAsync(new Person { Active = true, FirstName = "a", LastName = "a1", DateCreated = DateTime.UtcNow.AddDays(-10) });
-                Db.InsertAsync(new Person { Active = false, FirstName = "b", LastName = "b1", DateCreated = DateTime.UtcNow.AddDays(-10) });
-                Db.InsertAsync(new Person { Active = true, FirstName = "c", LastName = "c1", DateCreated = DateTime.UtcNow.AddDays(-3) });
-                Db.InsertAsync(new Person { Active = false, FirstName = "d", LastName = "d1", DateCreated = DateTime.UtcNow.AddDays(-1) });
-
-                Db.InsertAsync(new Animal { Name = "Foo" });
-                Db.InsertAsync(new Animal { Name = "Bar" });
-                Db.InsertAsync(new Animal { Name = "Baz" });
+                Task.WaitAll(new[]
+                {
+                    Db.InsertAsync(new Person {Active = true, FirstName = "a", LastName = "a1", DateCreated = DateTime.UtcNow.AddDays(-10)}),
+                    Db.InsertAsync(new Person { Active = false, FirstName = "b", LastName = "b1", DateCreated = DateTime.UtcNow.AddDays(-10) }),
+                    Db.InsertAsync(new Person { Active = true, FirstName = "c", LastName = "c1", DateCreated = DateTime.UtcNow.AddDays(-3) }),
+                    Db.InsertAsync(new Person { Active = false, FirstName = "d", LastName = "d1", DateCreated = DateTime.UtcNow.AddDays(-1) }),
+                    Db.InsertAsync(new Animal { Name = "Foo" }),
+                    Db.InsertAsync(new Animal { Name = "Bar" }),
+                    Db.InsertAsync(new Animal { Name = "Baz" })
+                });
 
                 var predicate = new GetMultiplePredicate();
                 predicate.Add<Person>(null);
