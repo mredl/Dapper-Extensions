@@ -53,7 +53,7 @@ services:
       ACCEPT_EULA: Y
       SA_PASSWORD: D4pp3rExt3ns1ons
     ports:
-      - 1433:1433
+      - 1444:1433
       
   db2:
     image: ibmcom/db2

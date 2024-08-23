@@ -548,13 +548,13 @@ namespace DapperExtensions.Sql
         public Table GetMappedTables(Type entityType, Type parentEntityType = null)
         {
             return Tables.Single(t => t.ParentEntityType == parentEntityType
-                                  && t.EntityType == entityType);
+                                            && t.EntityType == entityType);
         }
 
         public Table GetMappedTables(Guid identity, Guid parentIdentity)
         {
             return Tables.Single(t => t.Identity.Equals(identity)
-                                  && t.ParentIdentity.Equals(parentIdentity));
+                                            && t.ParentIdentity.Equals(parentIdentity));
         }
 
         private IClassMapper GetVirtualClassMapper(IClassMapper mapper)
@@ -649,7 +649,7 @@ namespace DapperExtensions.Sql
                     SetReferencePropertiesParentIdentity(parent, parentIdentity);
                 }
                 else
-                {
+        {
                     var parentIdentity = parent.Identity;
                     var childIdentityFromIncluded = includedProperties.FirstOrDefault(i => TablesAdded.Any(a => a.Identity == i.ParentIdentity) &&
                         i.ParentIdentity == parentIdentity && i.PropertyInfo == propertyInfo);
@@ -751,7 +751,7 @@ namespace DapperExtensions.Sql
             var i = 0;
             //AllColumns = GetColumns(classMap, classMap.Identity).ToList();
             AllColumns = GetColumns().ToList();
-
+         
             AllColumns = AllColumns.Select(c => new Column
             {
                 Alias = c.Alias,
@@ -764,7 +764,7 @@ namespace DapperExtensions.Sql
 
             var columns = AllColumns
                 .Where(col => !col.Property.Ignored && (colsToSelect == null || colsToSelect?.Any(c => c.PropertyName.Equals(col.Property.ColumnName, StringComparison.OrdinalIgnoreCase)) == true))
-                .Select(col => GetColumnName(col, true));
+                .Select(col => GetColumnName(col, false));//TODO:
 
             var result = columns.AppendStrings();
             return string.IsNullOrEmpty(result) ? throw new NotSupportedException("Query with empty ClassMapper is not supported.") : result;
