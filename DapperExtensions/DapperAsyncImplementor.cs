@@ -1,12 +1,13 @@
-﻿using Dapper;
+using System;
+using Dapper;
 using DapperExtensions.Mapper;
 using DapperExtensions.Predicate;
 using DapperExtensions.Sql;
 using System.Collections.Generic;
 using System.Data;
+using System.Dynamic;
 using System.Linq;
 using System.Threading.Tasks;
-using AutoMapper = Slapper.AutoMapper;
 
 namespace DapperExtensions
 {
@@ -74,7 +75,7 @@ namespace DapperExtensions
         Task<IMultipleResultReader> GetMultipleAsync(IDbConnection connection, GetMultiplePredicate predicate, IDbTransaction transaction, int? commandTimeout, IList<IReferenceMap> includedProperties = null);
     }
 
-    public class DapperAsyncImplementor : DapperImplementor, IDapperAsyncImplementor
+    public partial class DapperAsyncImplementor : DapperImplementor, IDapperAsyncImplementor
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="DapperAsyncImplementor"/> class.
@@ -123,16 +124,18 @@ namespace DapperExtensions
         /// <summary>
         /// The asynchronous counterpart to <see cref="IDapperImplementor.Delete{T}(IDbConnection, T, IDbTransaction, int?)"/>.
         /// </summary>
-        public async Task<bool> DeleteAsync<T>(IDbConnection connection, T entity, IDbTransaction transaction, int? commandTimeout)
+        public Task<bool> DeleteAsync<T>(IDbConnection connection, T entity, IDbTransaction transaction, int? commandTimeout) where T : class
         {
-            return await Task.FromResult(Delete<T>(connection, entity, transaction, commandTimeout));
+            GetMapAndPredicate<T>(entity, out var classMap, out var predicate, true);
+            return InternalDeleteAsync<T>(connection, classMap, predicate, transaction, commandTimeout);
         }
         /// <summary>
         /// The asynchronous counterpart to <see cref="IDapperImplementor.Delete{T}(IDbConnection, object, IDbTransaction, int?)"/>.
         /// </summary>
-        public async Task<bool> DeleteAsync<T>(IDbConnection connection, object predicate, IDbTransaction transaction, int? commandTimeout)
+        public Task<bool> DeleteAsync<T>(IDbConnection connection, object predicate, IDbTransaction transaction, int? commandTimeout) where T : class
         {
-            return await Task.FromResult(Delete<T>(connection, predicate, transaction, commandTimeout));
+            GetMapAndPredicate<T>(predicate, out var classMap, out var wherePredicate);
+            return InternalDeleteAsync<T>(connection, classMap, wherePredicate, transaction, commandTimeout);
         }
         /// <summary>
         /// The asynchronous counterpart to <see cref="IDapperImplementor.Get{T}"/>.
@@ -140,7 +143,8 @@ namespace DapperExtensions
         public async Task<T> GetAsync<T>(IDbConnection connection, dynamic id, IDbTransaction transaction = null, int? commandTimeout = null, bool buffered = false,
             IList<IProjection> colsToSelect = null, IList<IReferenceMap> includedProperties = null)
         {
-            return await Task.FromResult((T)InternalGet<T>(connection, id, transaction, commandTimeout, colsToSelect, includedProperties));
+            var result = (IEnumerable<T>)await InternalGetListAutoMapAsync<T>(connection, id, null, transaction, commandTimeout, true, colsToSelect, includedProperties);
+            return result.SingleOrDefault();
         }
 
         /// <summary>
@@ -191,7 +195,15 @@ namespace DapperExtensions
         public async Task<int> CountAsync<T>(IDbConnection connection, object predicate = null, IDbTransaction transaction = null,
             int? commandTimeout = null, IList<IReferenceMap> includedProperties = null)
         {
-            return await Task.FromResult(Count<T>(connection, predicate, transaction, commandTimeout, includedProperties));
+            GetMapAndPredicate<T>(predicate, out var classMap, out var wherePredicate);
+            var parameters = new Dictionary<string, object>();
+            var sql = SqlGenerator.Count(classMap, wherePredicate, parameters, includedProperties);
+
+            var dynamicParameters = GetDynamicParameters(parameters);
+            LastExecutedCommand = sql;
+            var result = await connection.QueryAsync(sql, dynamicParameters, transaction, commandTimeout,
+                CommandType.Text);
+            return (int)result.Single().Total;
         }
 
         public async Task<IMultipleResultReader> GetMultipleAsync(IDbConnection connection, GetMultiplePredicate predicate, IDbTransaction transaction,
@@ -199,27 +211,99 @@ namespace DapperExtensions
         {
             if (SqlGenerator.SupportsMultipleStatements())
             {
-                return await Task.FromResult(GetMultipleByBatch(connection, predicate, transaction, commandTimeout, includedProperties));
+                return await GetMultipleByBatchAsync(connection, predicate, transaction, commandTimeout, includedProperties);
             }
 
-            return await Task.FromResult(GetMultipleBySequence(connection, predicate, transaction, commandTimeout, includedProperties));
+            return await GetMultipleBySequenceAsync(connection, predicate, transaction, commandTimeout, includedProperties);
         }
         #endregion
 
         #region Private implementations
 
-        private async Task<dynamic> InternalInsertAsync<T>(IDbConnection connection, T entity, IDbTransaction transaction, int? commandTimeout,
+        private async Task<dynamic> InternalInsertAsync<T>(IDbConnection connection, T entity,
+            IDbTransaction transaction, int? commandTimeout,
             IClassMapper classMap, IList<IMemberMap> nonIdentityKeyProperties, IMemberMap identityColumn,
             IMemberMap triggerIdentityColumn, IList<IMemberMap> sequenceIdentityColumn)
         {
-            return await Task.FromResult(InternalInsert(connection, entity, transaction, commandTimeout, classMap, nonIdentityKeyProperties, identityColumn, triggerIdentityColumn, sequenceIdentityColumn));
+            DynamicParameters dynamicParameters = null;
+
+            foreach (var column in nonIdentityKeyProperties)
+            {
+                if (column.KeyType == KeyType.Guid && (Guid)column.GetValue(entity) == Guid.Empty)
+                {
+                    var comb = SqlGenerator.Configuration.GetNextGuid();
+                    column.SetValue(entity, comb);
+                }
+            }
+
+            IDictionary<string, object> keyValues = new ExpandoObject();
+            var sql = SqlGenerator.Insert(classMap);
+            if (triggerIdentityColumn != null || identityColumn != null)
+            {
+                var keyColumn = triggerIdentityColumn ?? identityColumn;
+                object keyValue;
+
+                dynamicParameters = GetDynamicParameters(classMap, entity, dynamicParameters, keyColumn, true);
+
+                if (triggerIdentityColumn != null)
+                {
+                    keyValue = InsertTriggered(connection, entity, transaction, commandTimeout, sql, triggerIdentityColumn, dynamicParameters);
+                }
+                else
+                {
+                    keyValue = InsertIdentity(connection, transaction, commandTimeout, classMap, sql, dynamicParameters);
+                }
+
+                keyValues.Add(keyColumn.Name, keyValue);
+                keyColumn.SetValue(entity, keyValue);
+            }
+            else
+            {
+                dynamicParameters = GetDynamicParameters(classMap, entity, true);
+
+                if (sequenceIdentityColumn.Count > 0)
+                {
+                    if (sequenceIdentityColumn.Count > 1)
+                        throw new ArgumentException("SequenceIdentity generator cannot be used with multi-column keys");
+
+                    AddSequenceParameter(connection, entity, sequenceIdentityColumn[0], dynamicParameters, keyValues);
+                }
+                else if (nonIdentityKeyProperties != null)
+                {
+                    AddKeyParameters(entity, nonIdentityKeyProperties, dynamicParameters, true);
+                }
+
+                LastExecutedCommand = sql;
+                await connection.ExecuteAsync(sql, dynamicParameters, transaction, commandTimeout, CommandType.Text);
+            }
+
+            foreach (var column in nonIdentityKeyProperties)
+            {
+                keyValues.Add(column.Name, column.GetValue(entity));
+            }
+
+            if (keyValues.Count == 1)
+            {
+                return keyValues.First().Value;
+            }
+
+            return keyValues;
         }
 
-        private async Task<bool> InternalUpdateAsync<T>(IDbConnection connection, T entity, IClassMapper classMap, IPredicate predicate, IDbTransaction transaction,
-            IList<IProjection> cols, int? commandTimeout, bool ignoreAllKeyProperties = false)
+        private async Task<bool> InternalUpdateAsync<T>(IDbConnection connection, T entity, IClassMapper classMap,
+            IPredicate predicate, IDbTransaction transaction,
+            IList<IProjection> cols, int? commandTimeout, bool ignoreAllKeyProperties = false) where T : class
         {
-            return await Task.FromResult(InternalUpdate(connection, entity, classMap, predicate, transaction, cols, commandTimeout, ignoreAllKeyProperties));
+            var parameters = new Dictionary<string, object>();
+            string sql = SqlGenerator.Update(classMap, predicate, parameters, ignoreAllKeyProperties, cols);
+
+            var dynamicParameters = GetDynamicParameters(classMap, entity, true);
+            dynamicParameters.AddDynamicParams(GetDynamicParameters(parameters));
+
+            LastExecutedCommand = sql;
+            return await connection.ExecuteAsync(sql, dynamicParameters, transaction, commandTimeout, CommandType.Text) > 0;
         }
+
 
         private async Task<bool> InternalUpdateAsync<T>(IDbConnection connection, T entity, IDbTransaction transaction, IList<IProjection> cols,
             int? commandTimeout, bool ignoreAllKeyProperties = false)
@@ -239,25 +323,53 @@ namespace DapperExtensions
 
         private async Task<T> InternalGetAsync<T>(IDbConnection connection, dynamic id, IDbTransaction transaction, int? commandTimeout, IList<IProjection> colsToSelect, IList<IReferenceMap> includedProperties = null)
         {
-            return await Task.FromResult(InternalGetListAutoMap<T>(connection, id, null, transaction, commandTimeout, true, colsToSelect, includedProperties));
+            return await InternalGetListAutoMapAsync<T>(connection, id, null, transaction, commandTimeout, true, colsToSelect, includedProperties);
         }
 
         private async Task<IEnumerable<T>> InternalGetListAutoMapAsync<T>(IDbConnection connection, object predicate, IList<ISort> sort, IDbTransaction transaction,
             int? commandTimeout, bool buffered, IList<IProjection> colsToSelect, IList<IReferenceMap> includedProperties = null)
         {
-            return await Task.FromResult(InternalGetListAutoMap<T>(connection, predicate, sort, transaction, commandTimeout, buffered, colsToSelect, includedProperties));
+            GetMapAndPredicate<T>(predicate, out var classMap, out var wherePredicate);
+           
+            var parameters = new Dictionary<string, object>();
+            var sql = SqlGenerator.Select(classMap, wherePredicate, sort, parameters, colsToSelect, includedProperties);
+            var dynamicParameters = GetDynamicParameters(parameters);
+
+            LastExecutedCommand = sql;
+            var command = new CommandDefinition(sql, dynamicParameters, transaction, commandTimeout, CommandType.Text, buffered ? CommandFlags.Buffered : CommandFlags.None);
+            var query = await connection.QueryAsync<T>(command);
+
+            return query;
         }
 
         private async Task<IEnumerable<T>> InternalGetPageAutoMapAsync<T>(IDbConnection connection, object predicate, IList<ISort> sort, int page, int resultsPerPage,
             IDbTransaction transaction, int? commandTimeout, bool buffered, IList<IProjection> colsToSelect, IList<IReferenceMap> includedProperties = null)
         {
-            return await Task.FromResult(InternalGetPageAutoMap<T>(connection, predicate, sort, page, resultsPerPage, transaction, commandTimeout, buffered, colsToSelect, includedProperties));
+            GetMapAndPredicate<T>(predicate, out var classMap, out var wherePredicate);
+            
+            var parameters = new Dictionary<string, object>();
+            var sql = SqlGenerator.SelectPaged(classMap, wherePredicate, sort, page, resultsPerPage, parameters, colsToSelect, includedProperties);
+            var dynamicParameters = GetDynamicParameters(parameters);
+
+            LastExecutedCommand = sql;
+            var command = new CommandDefinition(sql, dynamicParameters, transaction, commandTimeout, CommandType.Text, buffered ? CommandFlags.Buffered : CommandFlags.None);
+            var query = await connection.QueryAsync<T>(command);
+
+            return query;
         }
 
-        private async Task<IEnumerable<T>> InternalGetSetAsync<T>(IDbConnection connection, object predicate, IList<ISort> sort, int firstResult, int maxResults,
-            IDbTransaction transaction, int? commandTimeout, bool buffered, IList<IProjection> colsToSelect, IList<IReferenceMap> includedProperties = null)
+        private Task<IEnumerable<T>> InternalGetSetAsync<T>(IDbConnection connection, object predicate, IList<ISort> sort, int firstResult, int maxResults,
+            IDbTransaction transaction, int? commandTimeout, bool buffered, IList<IProjection> colsToSelect, IList<IReferenceMap> includedProperties = null) where T : class
         {
-            return await Task.FromResult(InternalGetSet<T>(connection, predicate, sort, firstResult, maxResults, transaction, commandTimeout, buffered, colsToSelect, includedProperties));
+            GetMapAndPredicate<T>(predicate, out var classMap, out var wherePredicate);
+            
+            var parameters = new Dictionary<string, object>();
+            var sql = SqlGenerator.SelectSet(classMap, wherePredicate, sort, firstResult, maxResults, parameters, colsToSelect, includedProperties);
+            var dynamicParameters = GetDynamicParameters(parameters);
+
+            LastExecutedCommand = sql;
+            var command = new CommandDefinition(sql, dynamicParameters, transaction, commandTimeout, CommandType.Text, buffered ? CommandFlags.Buffered : CommandFlags.None);
+            return connection.QueryAsync<T>(command);
         }
         #endregion
 
@@ -281,10 +393,10 @@ namespace DapperExtensions
 
         protected async Task<IEnumerable<T>> GetListAutoMapAsync<T>(IDbConnection connection, IClassMapper classMap, IPredicate predicate, IList<ISort> sort, IDbTransaction transaction, int? commandTimeout, IList<IProjection> colsToSelect = null)
         {
-            var query = await GetListAsync<dynamic>(connection, classMap, predicate, sort, transaction, commandTimeout, colsToSelect);
+            var query = await GetListAsync<T>(connection, classMap, predicate, sort, transaction, commandTimeout, colsToSelect);
             var data = query.ToList();
 
-            return await Task.FromResult(AutoMapper.MapDynamic<T>(data, false)).ConfigureAwait(false);
+            return data;
         }
 
         /// <summary>
@@ -308,10 +420,10 @@ namespace DapperExtensions
         /// </summary>
         protected async Task<IEnumerable<T>> GetPageAutoMapAsync<T>(IDbConnection connection, IClassMapper classMap, IPredicate predicate, IList<ISort> sort, int page, int resultsPerPage, IDbTransaction transaction, int? commandTimeout, IList<IProjection> colsToSelect = null)
         {
-            var query = await GetPageAsync<dynamic>(connection, classMap, predicate, sort, page, resultsPerPage, transaction, commandTimeout, colsToSelect);
+            var query = await GetPageAsync<T>(connection, classMap, predicate, sort, page, resultsPerPage, transaction, commandTimeout, colsToSelect);
             var data = query.ToList();
 
-            return await Task.FromResult(AutoMapper.MapDynamic<T>(data, false)).ConfigureAwait(false);
+            return data;
         }
 
         /// <summary>

@@ -24,7 +24,7 @@ namespace DapperExtensions.Test.IntegrationTests.Async.DB2
                     DateCreated = DateTime.Now,
                     Active = 1
                 };
-                Db.Insert(p);
+                Db.InsertAsync(p);
                 var start = DateTime.Now;
                 var ids = new List<long>();
                 for (var i = 0; i < cnt; i++)
@@ -36,7 +36,7 @@ namespace DapperExtensions.Test.IntegrationTests.Async.DB2
                         DateCreated = DateTime.Now,
                         Active = 1
                     };
-                    Db.Insert(p2);
+                    Db.InsertAsync(p2);
                     ids.Add(p2.Id);
                 }
 
@@ -56,7 +56,7 @@ namespace DapperExtensions.Test.IntegrationTests.Async.DB2
                     DateCreated = DateTime.Now,
                     Active = 1
                 };
-                Db.Insert(p);
+                Db.InsertAsync(p);
                 var start = DateTime.Now;
                 var ids = new List<long>();
                 for (var i = 0; i < cnt; i++)
@@ -68,7 +68,7 @@ namespace DapperExtensions.Test.IntegrationTests.Async.DB2
                         DateCreated = DateTime.Now,
                         Active = 1
                     };
-                    var id = Db.Insert(p2).Result;
+                    var id = Db.InsertAsync(p2).Result;
                     ids.Add(id);
                 }
 
@@ -82,14 +82,14 @@ namespace DapperExtensions.Test.IntegrationTests.Async.DB2
             public void AssignKey_UsingEntity()
             {
                 var ca = new Car { Id = string.Empty.PadLeft(15, '0'), Name = "Name" };
-                Db.Insert(ca);
+                Db.InsertAsync(ca);
                 var start = DateTime.Now;
                 var ids = new List<string>();
                 for (var i = 0; i < cnt; i++)
                 {
                     var key = (i + 1).ToString().PadLeft(15, '0');
                     var ca2 = new Car { Id = key, Name = "Name" + i };
-                    Db.Insert(ca2);
+                    Db.InsertAsync(ca2);
                     ids.Add(ca2.Id);
                 }
 
@@ -103,14 +103,14 @@ namespace DapperExtensions.Test.IntegrationTests.Async.DB2
             public void AssignKey_UsingReturnValue()
             {
                 var ca = new Car { Id = string.Empty.PadLeft(15, '0'), Name = "Name" };
-                Db.Insert(ca);
+                Db.InsertAsync(ca);
                 var start = DateTime.Now;
                 var ids = new List<string>();
                 for (var i = 0; i < cnt; i++)
                 {
                     var key = (i + 1).ToString().PadLeft(15, '0');
                     var ca2 = new Car { Id = key, Name = "Name" + i };
-                    var id = Db.Insert(ca2).Result;
+                    var id = Db.InsertAsync(ca2).Result;
                     ids.Add(id);
                 }
 

@@ -1,9 +1,7 @@
 ﻿using DapperExtensions.Predicate;
-using Oracle.ManagedDataAccess.Client;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 
@@ -142,7 +140,7 @@ namespace DapperExtensions.Sql
 
         public override void EnableCaseInsensitive(IDbConnection connection)
         {
-            var conn = connection as OracleConnection;
+            dynamic conn = connection;
             var info = conn.GetSessionInfo();
             info.Sort = "BINARY_CI"; // NLS_SORT:
             info.Comparison = "LINGUISTIC"; // NLS_COMP:

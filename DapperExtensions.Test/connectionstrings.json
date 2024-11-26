@@ -1,7 +1,7 @@
 {
 	"MySql": "Server=localhost;Database=dapperTest;Uid=dapperExtensions;Pwd=password;",
-	"SqlServer": "Data Source=localhost;Initial Catalog=dapper;Persist Security Info=True;User ID=dapperExtensions;Password=p@ssw0rd",
-	"SqlServerDBA": "Data Source=localhost;Persist Security Info=True;User ID=sa;Password=D4pp3rExt3ns1ons",
+	"SqlServer": "Data Source=.;Initial Catalog=dapper;Persist Security Info=True;Integrated Security=true;MultipleActiveResultSets=True",
+	"SqlServerDBA": "Data Source=.;Persist Security Info=False;Integrated Security=true",
 	"DB2": "Server=localhost;Database=TESTDB;UID=db2inst1;PWD=D4pp3rExt3ns1ons;",
 	"Oracle": "Data Source=localhost:1521/xe; User Id=xe; Password=xe;",
 	"OracleDBA": "Data Source=localhost:1521/xe;DBA Privilege=SYSDBA; User Id=sys; Password=oracle;",

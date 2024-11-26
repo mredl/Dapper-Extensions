@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using DapperExtensions.Mapper;
 using DapperExtensions.Predicate;
 using DapperExtensions.Sql;
@@ -11,7 +11,6 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
-using AutoMapper = Slapper.AutoMapper;
 
 namespace DapperExtensions
 {
@@ -241,9 +240,9 @@ namespace DapperExtensions
             var dynamicParameters = GetDynamicParameters(parameters);
 
             LastExecutedCommand = sql;
-            var query = connection.Query<dynamic>(sql, dynamicParameters, transaction, buffered, commandTimeout, CommandType.Text);
+            var query = connection.Query<T>(sql, dynamicParameters, transaction, buffered, commandTimeout, CommandType.Text);
 
-            return MappColumns<T>(query);
+            return query;
         }
 
         protected IEnumerable<T> GetPageAutoMap<T>(IDbConnection connection, IClassMapper classMap, IPredicate predicate, IList<ISort> sort, int page, int resultsPerPage, IDbTransaction transaction, int? commandTimeout, bool buffered, IList<IProjection> colsToSelect, IList<IReferenceMap> includedProperties = null)
@@ -253,9 +252,9 @@ namespace DapperExtensions
             var dynamicParameters = GetDynamicParameters(parameters);
 
             LastExecutedCommand = sql;
-            var query = connection.Query<dynamic>(sql, dynamicParameters, transaction, buffered, commandTimeout, CommandType.Text);
+            var query = connection.Query<T>(sql, dynamicParameters, transaction, buffered, commandTimeout, CommandType.Text);
 
-            return MappColumns<T>(query);
+            return query;
         }
 
         protected IEnumerable<T> GetPage<T>(IDbConnection connection, IClassMapper classMap, IPredicate predicate, IList<ISort> sort, int page, int resultsPerPage, IDbTransaction transaction, int? commandTimeout, bool buffered, IList<IProjection> colsToSelect, IList<IReferenceMap> includedProperties = null)
@@ -425,6 +424,7 @@ namespace DapperExtensions
 
         protected void SetAutoMapperIdentifier(IList<Table> tables)
         {
+            return;
             foreach (var table in tables)
             {
                 var map = SqlGenerator.Configuration.GetMap(table.EntityType);
@@ -438,7 +438,7 @@ namespace DapperExtensions
                     .Select(p => p.Name)
                     .ToList();
 
-                AutoMapper.Configuration.AddIdentifiers(table.IsVirtual ? table.EntityType.BaseType : table.EntityType, properties);
+               // AutoMapper.Configuration.AddIdentifiers(table.IsVirtual ? table.EntityType.BaseType : table.EntityType, properties);
             }
         }
 
@@ -455,8 +455,8 @@ namespace DapperExtensions
                 return SqlGenerator.AllColumns.Where(c => c.Alias.Equals(columnAlias, StringComparison.InvariantCultureIgnoreCase)).Select(c => c.SimpleAlias).Single();
             return "";
         }
-
-        protected IEnumerable<T> MappColumns<T>(IEnumerable<dynamic> values)
+        /*
+        protected IEnumerable<T> MappColumns<T>(IEnumerable<dynamic> values) where T : class
         {
             var list = new List<Dictionary<string, object>>();
             foreach (var d in values.ToList())
@@ -475,7 +475,7 @@ namespace DapperExtensions
             SetAutoMapperIdentifier(SqlGenerator.MappedTables);
 
             return AutoMapper.Map<T>(list, false);
-        }
+        }*/
 
         protected static DynamicParameters GetDynamicParameters(Dictionary<string, object> parameters)
         {
@@ -540,7 +540,7 @@ namespace DapperExtensions
             foreach (var prop in entity.GetType().GetProperties(BindingFlags.GetProperty | BindingFlags.GetField | BindingFlags.Instance | BindingFlags.Public)
                 .Where(p => !keyColumns.Any(k => k.Name.Equals(p.Name)) && !foreignKeys.Contains(p) && !ignoredColumns.Contains(p)
                 ))
-                dynamicParameters = AddParameter(entity, dynamicParameters, new MemberMap(prop), useColumnAlias);
+                dynamicParameters = AddParameter(entity, dynamicParameters, new MemberMap(prop, classMap), useColumnAlias);
 
             return dynamicParameters;
         }
@@ -557,13 +557,20 @@ namespace DapperExtensions
             return GetDynamicParameters(entity, classMap, sequenceIdentityColumn, foreignKeys, ignored, useColumnAlias);
         }
 
-        public DynamicParameters GetDynamicParameters<T>(T entity, DynamicParameters dynamicParameters, IMemberMap keyColumn, bool useColumnAlias = false)
+        public DynamicParameters GetDynamicParameters<T>(IClassMapper classMap, T entity, DynamicParameters dynamicParameters, IMemberMap keyColumn, bool useColumnAlias = false) where T:class
         {
+            var sequenceIdentityColumn = classMap.Properties.Where(p => p.KeyType == KeyType.SequenceIdentity)?.ToList();
+            var foreignKeys = classMap.Properties.Where(p => p.KeyType == KeyType.ForeignKey).Select(p => p.MemberInfo).ToList();
+            var ignoredColumns = classMap.Properties.Where(x => x.Ignored).Select(p => p.MemberInfo).ToList();
+            
             dynamicParameters ??= new DynamicParameters();
-            foreach (var prop in entity.GetType().GetProperties(BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.Public)
-                .Where(p => p.Name != keyColumn.Name))
-                AddParameter(entity, dynamicParameters, new MemberMap(prop), useColumnAlias);
+            var keyColumns = sequenceIdentityColumn.Count == 0 ? classMap.Properties.Where(p => p.KeyType == KeyType.Assigned || p.KeyType == KeyType.Guid)?.ToList() : sequenceIdentityColumn;
 
+            foreach (var prop in entity.GetType().GetProperties(BindingFlags.GetProperty | BindingFlags.GetField | BindingFlags.Instance | BindingFlags.Public)
+                         .Where(p => p.Name != keyColumn.Name)
+                         .Where(p => !ignoredColumns.Contains(p)))
+                 dynamicParameters = AddParameter(entity, dynamicParameters, new MemberMap(prop, classMap), useColumnAlias);
+           
             return dynamicParameters;
         }
 
@@ -594,7 +601,7 @@ namespace DapperExtensions
             }
         }
 
-        private object InsertTriggered<T>(IDbConnection connection, T entity, IDbTransaction transaction,
+        protected object InsertTriggered<T>(IDbConnection connection, T entity, IDbTransaction transaction,
             int? commandTimeout, string sql, IMemberMap key, DynamicParameters dynamicParameters)
         {
             // defaultValue need for identify type of parameter
@@ -607,7 +614,7 @@ namespace DapperExtensions
             return dynamicParameters.Get<object>(SqlGenerator.Configuration.Dialect.ParameterPrefix + "IdOutParam");
         }
 
-        private object InsertIdentity(IDbConnection connection, IDbTransaction transaction,
+        protected object InsertIdentity(IDbConnection connection, IDbTransaction transaction,
             int? commandTimeout, IClassMapper classMap, string sql, DynamicParameters dynamicParameters)
         {
             IEnumerable<long> result;
@@ -649,7 +656,7 @@ namespace DapperExtensions
             }
         }
 
-        private IDictionary<string, object> AddSequenceParameter<T>(IDbConnection connection, T entity, 
+        protected IDictionary<string, object> AddSequenceParameter<T>(IDbConnection connection, T entity, 
             IMemberMap key, DynamicParameters dynamicParameters, IDictionary<string, object> keyValues)
         {
             var query = $"select {key.SequenceName}.nextval seq from dual";
@@ -665,7 +672,7 @@ namespace DapperExtensions
             return keyValues;
         }
 
-        private void AddKeyParameters<T>(T entity, IList<IMemberMap> keyList, DynamicParameters dynamicParameters, bool useColumnAlias = false)
+        protected void AddKeyParameters<T>(T entity, IList<IMemberMap> keyList, DynamicParameters dynamicParameters, bool useColumnAlias = false)
         {
             foreach (var prop in keyList)
             {
@@ -695,7 +702,7 @@ namespace DapperExtensions
                 var keyColumn = triggerIdentityColumn ?? identityColumn;
                 object keyValue;
 
-                dynamicParameters = GetDynamicParameters(entity, dynamicParameters, keyColumn, true);
+                dynamicParameters = GetDynamicParameters(classMap, entity, dynamicParameters, keyColumn, true);
 
                 if (triggerIdentityColumn != null)
                 {
